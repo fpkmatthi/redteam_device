@@ -1,0 +1,135 @@
+---
+# tasks file for redteam_device
+
+# rt_user_pw should be set in an Ansible vault
+- name: Change the rt_user's password
+  user:
+    name: "{{ rt_user }}"
+    shell: /bin/bash
+    password: "{{ rt_user_pw }}"
+  tags:
+    - user
+
+# Add public key files under files/ as <name>.pub
+- name: Add Red Team Operator SSH keys to rt_user
+  authorized_key:
+    user: "{{ rt_user }}"
+    state: present
+    key: "{{ lookup('file', item + '.pub') }}"
+    # key: "{{ lookup('file', ssh_keys_path + '/' + item + '.pub') }}"
+  with_items:
+    - "{{ rt_operator_keys }}"
+  tags:
+    - 'user'
+
+- name: Install dependencies
+  package:
+    name: openvpn
+  tags:
+    - packages
+
+- name: Change the hostname
+  hostname:
+    name: "{{ rt_hostname }}"
+
+- name: Copy OpenVPN config
+  copy:
+    src: openvpn
+    dest: /etc/default/openvpn
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  tags:
+    - openvpn
+    - files
+
+- name: Copy .bashrc to rt_user home
+  copy:
+    src: "bashrc"
+    dest: "/home/{{ rt_user }}/.bashrc"
+    owner: "{{ rt_user }}"
+    group: "{{ rt_user }}"
+    mode: "0644"
+  tags:
+    - files
+
+- name: Ensure OpenVPN connection dir exists
+  file:
+    path: /etc/openvpn/keys/pki/ovpn
+    state: directory
+    mode: '0755'
+
+- name: Copy OpenVPN connection file
+  copy:
+    src: "{{ rt_ovpn_file_name }}"
+    dest: "/etc/openvpn/keys/pki/ovpn/{{ rt_ovpn_file_name }}"
+    owner: "{{ rt_user }}"
+    group: "{{ rt_user }}"
+    mode: "0744"
+  tags:
+    - openvpn
+    - files
+
+- name: Rename the extension of the OpenVPN config file
+  shell: filename={{ rt_ovpn_file_name }}; mv /etc/openvpn/keys/pki/ovpn/$filename /etc/openvpn/keys/pki/ovpn/${filename%.ovpn}.conf
+
+- name: Ensure DHCP hooks dir exists
+  file:
+    path: /etc/dhcp/dhclient-enter-hooks.d
+    state: directory
+    mode: '0755'
+
+- name: Copy no_default_route file
+  copy:
+    src: "no_default_route"
+    dest: "/etc/dhcp/dhclient-enter-hooks.d/no_default_route"
+    owner: "root"
+    group: "root"
+    mode: "0544"
+  tags:
+    - files
+
+- name: Copy boot config.txt file
+  template:
+    src: config.txt.j2
+    dest: "/boot/config.txt"
+    owner: "root"
+    group: "root"
+    mode: "0544"
+  tags:
+    - openvpn
+    - files
+
+- name: Ensure DHCP hooks dir exists
+  file:
+    path: /var/scripts
+    state: directory
+    mode: '0755'
+
+- name: Copy no-hope.py script
+  copy:
+    src: no-hope.py
+    dest: /var/scripts/no-hope.sh
+    owner: "{{ rt_user }}"
+    group: "{{ rt_user }}"
+    mode: "0755"
+  tags:
+    - scripts
+
+- name: Copy hilink.sh template
+  template:
+    src: hilink.sh.j2
+    dest: /var/scripts/hilink.sh
+    owner: "{{ rt_user }}"
+    group: "{{ rt_user }}"
+    mode: "0755"
+  tags:
+    - scripts
+
+- name: Ensure a job that runs no-hope.sh exists
+  ansible.builtin.cron:
+    name: "check dirs"
+    minute: "*/12"
+    job: "/bin/python3 /var/scripts/no-hope.py"
+
+

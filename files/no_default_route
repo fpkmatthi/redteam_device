@@ -1,0 +1,43 @@
+
+#!/bin/sh
+# prevent dhclient-script from setting default route every time it gets
+# a new dhcpoffer for any interface.
+
+ 
+
+INTERFACE_DEFAULT_ROUTE="eth1"
+#INTERFACE_DEFAULT_ROUTE="eth0"
+DEBUG_FILE="/tmp/dhclient-nodefroute.debug"
+
+ 
+
+echo "Interface ${interface} entered DHCP because of $reason." >> $DEBUG_FILE
+
+ 
+
+case "$reason" in
+BOUND|RENEW|REBIND|REBOOT|TIMEOUT)
+
+ 
+
+echo "New DHCP connection because of $reason." >> $DEBUG_FILE
+echo "dhcp for interface ${interface}" >> $DEBUG_FILE
+
+ 
+
+if [ ${interface} != $INTERFACE_DEFAULT_ROUTE ]; then
+echo "interface ${interface} doesn't match ${INTERFACE_DEFAULT_ROUTE}, not setting default route." >> $DEBUG_FILE
+unset new_routers
+else
+echo "default route for ${interface}" >> $DEBUG_FILE
+fi
+
+ 
+
+;;
+esac
+
+
+
+
+

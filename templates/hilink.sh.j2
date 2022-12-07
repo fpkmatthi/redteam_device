@@ -1,0 +1,49 @@
+#! /bin/bash
+
+sleep 30
+
+message="Device status: active. VPN status: $1."
+
+numbers_to_notify="{% for nr in rt_numbers %}<Phone>{{ nr }}</Phone>{% endfor %}"
+numbers_array=({% for nr in rt_numbers%}"{{nr}}" {% endfor %})
+
+{% raw %}
+scheme=${HILINK_PROTO:-'http'}
+host=${HILINK_HOST:-'192.168.8.1'}
+port=${HILINK_PORT:-'80'}
+curl_options="-fsSH 'Host:Hi.link'"
+
+
+RESPONSE=`curl $curl_options -X GET $scheme://$host:$port/api/webserver/SesTokInfo`
+COOKIE=`echo "$RESPONSE"| grep SesInfo | cut -b 58-185`
+TOKEN=`echo "$RESPONSE"| grep TokInfo | cut -b 205-236`
+curl $curl_options -X POST "$scheme://$host:$port/api/sms/send-sms" -H "Cookie:$COOKIE" -H "__RequestVerificationToken:$TOKEN" -d "<request><Index>-1</Index><Phones>$numbers_to_notify</Phones><Sca>$sca</Sca><Content>$message</Content><Length>${#alive}</Length><Reserved>1</Reserved><Date>$(date '+%Y-%m-%d %T')</Date></request>"
+
+sleep 10
+
+RESPONSE=`curl $curl_options -X GET $scheme://$host:$port/api/webserver/SesTokInfo`
+COOKIE=`echo "$RESPONSE"| grep SesInfo | cut -b 58-185`
+TOKEN=`echo "$RESPONSE"| grep TokInfo | cut -b 205-236`
+reset="Reset"
+curl $curl_options -X POST "$scheme://$host:$port/api/sms/send-sms" -H "Cookie:$COOKIE" -H "__RequestVerificationToken:$TOKEN" -d "<request><Index>-1</Index><Phones><Phone>0471098610</Phone></Phones><Sca>$sca</Sca><Content>$reset</Content><Length>${#reset}</Length><Reserved>1</Reserved><Date>$(date '+%Y-%m-%d %T')</Date></request>"
+
+
+# Get a cookie/session id
+while : 
+do
+  sleep 60
+  RESPONSE=`curl $curl_options -X GET $scheme://$host:$port/api/webserver/SesTokInfo`
+  COOKIE=`echo "$RESPONSE"| grep SesInfo | cut -b 58-185`
+  TOKEN=`echo "$RESPONSE"| grep TokInfo | cut -b 205-236`
+  result=$(curl $curl_options -X POST "$scheme://$host:$port/api/sms/sms-list" -H "Cookie:$COOKIE" -H "__RequestVerificationToken:$TOKEN" -d "<request><PageIndex>1</PageIndex><ReadCount>${2:-1}</ReadCount><BoxType>1</BoxType><SortType>0</SortType><Ascending>0</Ascending><UnreadPreferred>1</UnreadPreferred></request>")
+  phone=${result:151:12}
+  text=${result:184:6}
+  for nr in $numbers_array; do
+    if [[ "${phone}" == "${nr}" ]]; then
+        if [ "$text" == "Reboot" ]; then
+          sudo reboot
+        fi
+    fi
+  done
+done
+{% endraw %}

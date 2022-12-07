@@ -1,0 +1,7 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include fpkmatthi.redteam_device"
+      include_role:
+        name: "fpkmatthi.redteam_device"

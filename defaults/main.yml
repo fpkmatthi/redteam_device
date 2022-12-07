@@ -1,0 +1,21 @@
+---
+# defaults file for redteam_device
+
+# The RPIs new hostname
+rt_hostname: 'rpi-vpn-0'
+
+# The MAC address to set for the device
+rt_hwaddress: 'F8:63:3F:4C:68:B9'
+
+# The user that will connect to the VPN
+rt_user: 'kali'
+rt_user_pw: 'kali'
+
+# Put the OpenVPN connection file under files/<name>.ovpn
+rt_ovpn_file_name: ''
+
+# Put the operator names here as list + put operator SSH keys under files/<operator>.pub
+rt_operator_keys: []
+
+# Put phone numbers that need to be modified here as list
+rt_numbers: []

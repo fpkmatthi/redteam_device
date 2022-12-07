@@ -1,0 +1,19 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: python:3.10-buster
+    pre_build_image: true
+provisioner:
+  name: ansible
+  options:
+    'vault-id': '@$HOME/.ansible/.ansible_vault_pass'
+verifier:
+  name: ansible
+lint: |
+  set -e
+  yamllint .
+  ansible-lint .
